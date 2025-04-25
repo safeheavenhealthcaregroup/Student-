@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>College Home</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Segoe UI", sans-serif;
+    }
+    body {
+      background: #f0f4f8;
+      color: #333;
+    }
+    header {
+      background-color: #004080;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    nav {
+      display: flex;
+      justify-content: flex-end;
+      background-color: #003060;
+      padding: 10px 30px;
+    }
+    nav button {
+      margin-left: 10px;
+      padding: 8px 16px;
+      border: none;
+      background: #ffffff;
+      color: #003060;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    nav button:hover {
+      background: #f0f0f0;
+    }
+    .hero {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .hero h1 {
+      font-size: 2.8rem;
+      color: #004080;
+    }
+    .hero p {
+      font-size: 1.2rem;
+      max-width: 700px;
+      margin: 20px auto;
+      color: #555;
+    }
+    footer {
+      background-color: #003060;
+      color: white;
+      text-align: center;
+      padding: 15px;
+      position: fixed;
+      width: 100%;
+      bottom: 0;
+    }
+    @media (max-width: 600px) {
+      .hero h1 {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Safe Haven College</h1>
+    <p>Empowering Education. Inspiring Success.</p>
+  </header>
+
+  <nav>
+    <button onclick="location.href='login.html'">Login</button>
+    <button onclick="location.href='signup.html'">Sign Up</button>
+  </nav>
+
+  <section class="hero">
+    <h1>Welcome to Safe Haven College</h1>
+    <p>
+      At Safe Haven, we are dedicated to providing high-quality education and
+      student-centered experiences. Join our vibrant community where learning
+      meets innovation. Discover courses, connect with faculty, and manage
+      attendance and progress — all in one place.
+    </p>
+  </section>
+
+  <footer>
+    &copy; 2025 Safe Haven College. All rights reserved.
+  </footer>
+
+</body>
+</html>
