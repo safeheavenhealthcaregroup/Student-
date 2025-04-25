@@ -1,32 +1,54 @@
 // admin.js
-import { auth, db } from './firebase.js';
-import {
-  collection,
-  getDocs,
-  updateDoc,
-  doc
-} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
-// Display all users
-async function showAllStudents() {
-  const userRef = collection(db, "users");
-  const snapshot = await getDocs(userRef);
+import { auth, db } from './auth.js'; import { collection, getDocs, updateDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js"; import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
-  const container = document.getElementById("student-list");
-  container.innerHTML = "";
+const container = document.getElementById("students-container");
 
-  snapshot.forEach((docSnap) => {
-    const student = docSnap.data();
-    container.innerHTML += `
-      <div>
-        <h4>${student.name}</h4>
-        <p>Email: ${student.email}</p>
-        <p>Class: ${student.class}</p>
-        <p>Attendance: ${student.attendance?.length || 0} days</p>
-      </div>
-      <hr/>
-    `;
-  });
+async function loadStudents() { const snapshot = await getDocs(collection(db, "users")); container.innerHTML = "";
+
+snapshot.forEach(docSnap => { const student = docSnap.data(); const uid = docSnap.id;
+
+const div = document.createElement("div");
+div.classList.add("student-card");
+div.innerHTML = `
+  <h3>${student.name || 'Unnamed Student'}</h3>
+  <label>Name:</label>
+  <input type="text" id="name-${uid}" value="${student.name || ''}" />
+
+  <label>Class:</label>
+  <input type="text" id="class-${uid}" value="${student.class || ''}" />
+
+  <label>Attendance (comma-separated dates):</label>
+  <textarea id="attendance-${uid}">${(student.attendance || []).join(", ")}</textarea>
+
+  <label>Attended Classes:</label>
+  <textarea id="classes-${uid}">${(student.attendedClasses || []).join(", ")}</textarea>
+
+  <label>Teachers:</label>
+  <textarea id="teachers-${uid}">${(student.teachers || []).join(", ")}</textarea>
+
+  <button onclick="updateStudent('${uid}')">Update</button>
+`;
+container.appendChild(div);
+
+}); }
+
+window.updateStudent = async function(uid) { const name = document.getElementById(name-${uid}).value.trim(); const className = document.getElementById(class-${uid}).value.trim(); const attendance = document.getElementById(attendance-${uid}).value.split(',').map(d => d.trim()).filter(Boolean); const classes = document.getElementById(classes-${uid}).value.split(',').map(d => d.trim()).filter(Boolean); const teachers = document.getElementById(teachers-${uid}).value.split(',').map(d => d.trim()).filter(Boolean);
+
+const userRef = doc(db, "users", uid); await updateDoc(userRef, { name, class: className, attendance, attendedClasses: classes, teachers });
+
+alert("Updated successfully!"); }
+
+window.logout = function () { signOut(auth).then(() => { window.location.href = "login.html"; }); }
+
+onAuthStateChanged(auth, async (user) => { if (user) { const adminRef = doc(db, "admins", user.uid); const adminSnap = await getDoc(adminRef);
+
+if (adminSnap.exists() && adminSnap.data().role === "admin") {
+  loadStudents();
+} else {
+  alert("Access denied. You're not an admin.");
+  window.location.href = "login.html";
 }
 
-window.onload = showAllStudents;
+} else { window.location.href = "login.html"; } });
+
