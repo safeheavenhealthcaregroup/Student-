@@ -1,98 +1,115 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Student Dashboard</title>
   <style>
-    body { font-family: Arial; background: #f0f0f0; padding: 20px; }
-    .container { max-width: 500px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px #ccc; }
-    h2 { text-align: center; }
-    input, button { padding: 10px; margin: 10px 0; width: 100%; box-sizing: border-box; }
-    .hidden { display: none; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f7faff;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin: 20px 0;
+    }
+    h2 {
+      color: #004080;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      background: #f0f4f8;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+    }
+    button {
+      padding: 10px 15px;
+      background-color: #004080;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
 
-<div id="loginSection" class="container">
-  <h2>Student Login</h2>
-  <input type="email" id="studentEmail" placeholder="Email">
-  <input type="password" id="studentPassword" placeholder="Password">
-  <button onclick="studentLogin()">Login</button>
-  <p id="loginMessage" style="color:red;"></p>
-</div>
+  <div class="card">
+    <h2>Welcome, <span id="student-name"></span></h2>
+    <p><strong>Class:</strong> <span id="class-info"></span></p>
+  </div>
 
-<div id="studentDashboard" class="container hidden">
-  <h2>Welcome, <span id="studentName"></span></h2>
-  <p><strong>Email:</strong> <span id="studentEmailDisplay"></span></p>
-  <p><strong>Class:</strong> <span id="studentClass"></span></p>
-  <p><strong>Total Attendance Days:</strong> <span id="attendanceCount"></span></p>
-  <ul id="attendanceDates"></ul>
-  <button onclick="logout()">Logout</button>
-</div>
+  <div class="card">
+    <h3>Your Attendance</h3>
+    <ul id="attendance-list"></ul>
+    <button onclick="markAttendance()">Mark Attendance</button>
+  </div>
 
-<!-- Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+  <div class="card">
+    <h3>Attended Classes</h3>
+    <ul id="class-list"></ul>
+  </div>
 
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyBC-go9YTEF1o15fcYUigCtzMv8yMBZois",
-    authDomain: "student-8ee94.firebaseapp.com",
-    projectId: "student-8ee94",
-    storageBucket: "student-8ee94.firebasestorage.app",
-    messagingSenderId: "877165909465",
-    appId: "1:877165909465:web:ce5c05f9295547f4c2b5c8",
-    measurementId: "G-KRSM7QDXMY"
-  };
+  <div class="card">
+    <h3>Teachers</h3>
+    <ul id="teacher-list"></ul>
+  </div>
 
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.firestore();
+  <!-- Firebase Scripts -->
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import {
+      doc, getDoc, updateDoc, arrayUnion
+    } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
-  const loginSection = document.getElementById("loginSection");
-  const studentDashboard = document.getElementById("studentDashboard");
+    let userRef;
 
-  function studentLogin() {
-    const email = document.getElementById("studentEmail").value;
-    const password = document.getElementById("studentPassword").value;
+    async function loadStudentData() {
+      const user = auth.currentUser;
+      if (!user) return;
 
-    auth.signInWithEmailAndPassword(email, password)
-      .then(userCred => {
-        const uid = userCred.user.uid;
-        loadStudentData(uid);
-      })
-      .catch(err => {
-        document.getElementById("loginMessage").innerText = err.message;
+      userRef = doc(db, "users", user.uid);
+      const snap = await getDoc(userRef);
+      const data = snap.data();
+
+      document.getElementById("student-name").innerText = data.name;
+      document.getElementById("class-info").innerText = data.class;
+
+      document.getElementById("attendance-list").innerHTML =
+        data.attendance?.map(d => `<li>${d}</li>`).join('') || "<li>No attendance</li>";
+
+      document.getElementById("class-list").innerHTML =
+        data.attendedClasses?.map(c => `<li>${c}</li>`).join('') || "<li>No classes attended</li>";
+
+      document.getElementById("teacher-list").innerHTML =
+        data.teachers?.map(t => `<li>${t}</li>`).join('') || "<li>No teachers listed</li>";
+    }
+
+    async function markAttendance() {
+      const today = new Date().toISOString().split("T")[0];
+      await updateDoc(userRef, {
+        attendance: arrayUnion(today)
       });
-  }
+      alert("Attendance marked!");
+      loadStudentData();
+    }
 
-  function loadStudentData(uid) {
-    db.collection("users").doc(uid).get().then(doc => {
-      const data = doc.data();
-      if (data) {
-        document.getElementById("studentName").innerText = data.name || "";
-        document.getElementById("studentEmailDisplay").innerText = data.email || "";
-        document.getElementById("studentClass").innerText = data.class || "";
-        const attendance = data.attendance || [];
-        document.getElementById("attendanceCount").innerText = attendance.length;
-        const list = document.getElementById("attendanceDates");
-        list.innerHTML = "";
-        attendance.forEach(date => {
-          const li = document.createElement("li");
-          li.textContent = date;
-          list.appendChild(li);
-        });
-        loginSection.classList.add("hidden");
-        studentDashboard.classList.remove("hidden");
-      }
-    });
-  }
+    window.markAttendance = markAttendance;
 
-  function logout() {
-    auth.signOut().then(() => {
-      location.reload();
+    auth.onAuthStateChanged((user) => {
+      if (user) loadStudentData();
+      else window.location.href = "login.html";
     });
-  }
-</script>
+  </script>
 </body>
 </html>
