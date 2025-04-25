@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Student Dashboard</title>
+  <style>
+    body { font-family: Arial; background: #f0f0f0; padding: 20px; }
+    .container { max-width: 500px; margin: auto; background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px #ccc; }
+    h2 { text-align: center; }
+    input, button { padding: 10px; margin: 10px 0; width: 100%; box-sizing: border-box; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<div id="loginSection" class="container">
+  <h2>Student Login</h2>
+  <input type="email" id="studentEmail" placeholder="Email">
+  <input type="password" id="studentPassword" placeholder="Password">
+  <button onclick="studentLogin()">Login</button>
+  <p id="loginMessage" style="color:red;"></p>
+</div>
+
+<div id="studentDashboard" class="container hidden">
+  <h2>Welcome, <span id="studentName"></span></h2>
+  <p><strong>Email:</strong> <span id="studentEmailDisplay"></span></p>
+  <p><strong>Class:</strong> <span id="studentClass"></span></p>
+  <p><strong>Total Attendance Days:</strong> <span id="attendanceCount"></span></p>
+  <ul id="attendanceDates"></ul>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBC-go9YTEF1o15fcYUigCtzMv8yMBZois",
+    authDomain: "student-8ee94.firebaseapp.com",
+    projectId: "student-8ee94",
+    storageBucket: "student-8ee94.firebasestorage.app",
+    messagingSenderId: "877165909465",
+    appId: "1:877165909465:web:ce5c05f9295547f4c2b5c8",
+    measurementId: "G-KRSM7QDXMY"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  const loginSection = document.getElementById("loginSection");
+  const studentDashboard = document.getElementById("studentDashboard");
+
+  function studentLogin() {
+    const email = document.getElementById("studentEmail").value;
+    const password = document.getElementById("studentPassword").value;
+
+    auth.signInWithEmailAndPassword(email, password)
+      .then(userCred => {
+        const uid = userCred.user.uid;
+        loadStudentData(uid);
+      })
+      .catch(err => {
+        document.getElementById("loginMessage").innerText = err.message;
+      });
+  }
+
+  function loadStudentData(uid) {
+    db.collection("users").doc(uid).get().then(doc => {
+      const data = doc.data();
+      if (data) {
+        document.getElementById("studentName").innerText = data.name || "";
+        document.getElementById("studentEmailDisplay").innerText = data.email || "";
+        document.getElementById("studentClass").innerText = data.class || "";
+        const attendance = data.attendance || [];
+        document.getElementById("attendanceCount").innerText = attendance.length;
+        const list = document.getElementById("attendanceDates");
+        list.innerHTML = "";
+        attendance.forEach(date => {
+          const li = document.createElement("li");
+          li.textContent = date;
+          list.appendChild(li);
+        });
+        loginSection.classList.add("hidden");
+        studentDashboard.classList.remove("hidden");
+      }
+    });
+  }
+
+  function logout() {
+    auth.signOut().then(() => {
+      location.reload();
+    });
+  }
+</script>
+</body>
+</html>
