@@ -1,143 +1,140 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Admin Panel</title>
+  <meta charset="UTF-8">
+  <title>Assign Admins - Control Panel</title>
+
+  <!-- Firebase libraries -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-functions-compat.js"></script>
+
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #f5f8fc;
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
       padding: 20px;
-      position: relative;
     }
-    h2 {
-      color: #004080;
-    }
-    .student-card {
-      background: #ffffff;
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
       border-radius: 10px;
-      padding: 20px;
+      box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
       margin-bottom: 20px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      color: #333;
     }
-    input, textarea {
-      width: 100%;
-      margin: 5px 0 15px;
-      padding: 8px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
+
+    #user-list {
+      margin-top: 20px;
     }
-    label {
-      font-weight: bold;
+
+    .user-card {
+      background: #e8f0fe;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.3s ease;
     }
-    button {
-      padding: 10px;
-      background-color: #004080;
+
+    .user-card:hover {
+      background: #d0e0fd;
+    }
+
+    .user-card button {
+      background: #4CAF50;
       color: white;
       border: none;
-      border-radius: 5px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .logout-btn {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background-color: #ff4d4d;
-      padding: 10px 15px;
-      border: none;
-      color: white;
+      padding: 8px 12px;
       border-radius: 5px;
       cursor: pointer;
       font-weight: bold;
+    }
+
+    .user-card button:hover {
+      background: #45a049;
     }
   </style>
+
 </head>
-<body>  <h2>Admin Panel - Manage Student Data</h2>
-  <button class="logout-btn" onclick="logout()">Logout</button>
-  <div id="students-container">Loading students...</div>  <script type="module">
-    import { auth, db } from './firebase.js';
-    import {
-      collection, getDocs, updateDoc, doc, getDoc
-    } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-    import {
-      onAuthStateChanged, signOut
-    } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
-    const container = document.getElementById("students-container");
+<body>
 
-    async function loadStudents() {
-      const snapshot = await getDocs(collection(db, "users"));
-      container.innerHTML = "";
+  <div class="container">
+    <h1>Assign Admin Role</h1>
+    <div id="user-list">
+      <!-- User cards will be loaded here -->
+    </div>
+  </div>
 
-      snapshot.forEach(docSnap => {
-        const student = docSnap.data();
-        const uid = docSnap.id;
+  <script>
+    // TODO: Replace with your Firebase project configuration
+    const firebaseConfig = {
+      apiKey: "YOUR-API-KEY",
+      authDomain: "YOUR-AUTH-DOMAIN",
+      projectId: "YOUR-PROJECT-ID",
+      storageBucket: "YOUR-STORAGE-BUCKET",
+      messagingSenderId: "YOUR-MESSAGING-SENDER-ID",
+      appId: "YOUR-APP-ID",
+    };
 
-        const div = document.createElement("div");
-        div.classList.add("student-card");
-        div.innerHTML = `
-          <h3>${student.name || 'Unnamed Student'}</h3>
-          <label>Name:</label>
-          <input type="text" id="name-${uid}" value="${student.name || ''}" />
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const functions = firebase.functions();
 
-          <label>Class:</label>
-          <input type="text" id="class-${uid}" value="${student.class || ''}" />
+    // Load users from Firestore
+    function loadUsers() {
+      const userList = document.getElementById('user-list');
+      userList.innerHTML = 'Loading users...';
 
-          <label>Attendance (comma-separated dates):</label>
-          <textarea id="attendance-${uid}">${(student.attendance || []).join(", ")}</textarea><label>Attended Classes:</label>
-      <textarea id="classes-${uid}">${(student.attendedClasses || []).join(", ")}</textarea>
-
-      <label>Teachers:</label>
-      <textarea id="teachers-${uid}">${(student.teachers || []).join(", ")}</textarea>
-
-      <button onclick="updateStudent('${uid}')">Update</button>
-    `;
-    container.appendChild(div);
-  });
-}
-
-window.updateStudent = async function(uid) {
-  const name = document.getElementById(`name-${uid}`).value.trim();
-  const className = document.getElementById(`class-${uid}`).value.trim();
-  const attendance = document.getElementById(`attendance-${uid}`).value.split(',').map(d => d.trim()).filter(Boolean);
-  const classes = document.getElementById(`classes-${uid}`).value.split(',').map(d => d.trim()).filter(Boolean);
-  const teachers = document.getElementById(`teachers-${uid}`).value.split(',').map(d => d.trim()).filter(Boolean);
-
-  const userRef = doc(db, "users", uid);
-  await updateDoc(userRef, {
-    name,
-    class: className,
-    attendance,
-    attendedClasses: classes,
-    teachers
-  });
-
-  alert("Updated successfully!");
-}
-
-window.logout = function () {
-  signOut(auth).then(() => {
-    window.location.href = "login.html";
-  });
-}
-
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    const adminRef = doc(db, "admins", user.uid);
-    const adminSnap = await getDoc(adminRef);
-
-    if (adminSnap.exists() && adminSnap.data().role === "admin") {
-      loadStudents();
-    } else {
-      alert("Access denied. You're not an admin.");
-      window.location.href = "login.html";
+      db.collection('users').get().then(snapshot => {
+        userList.innerHTML = '';
+        snapshot.forEach(doc => {
+          const user = doc.data();
+          const div = document.createElement('div');
+          div.className = 'user-card';
+          div.innerHTML = `
+            <div>
+              <strong>${user.email}</strong><br/>
+              UID: ${doc.id}
+            </div>
+            <button onclick="assignAdmin('${doc.id}')">Make Admin</button>
+          `;
+          userList.appendChild(div);
+        });
+      }).catch(err => {
+        console.error(err);
+        userList.innerHTML = 'Failed to load users.';
+      });
     }
-  } else {
-    window.location.href = "login.html";
-  }
-});
 
+    // Assign admin role to a user
+    function assignAdmin(uid) {
+      const addAdminRole = functions.httpsCallable('addAdminRole');
+      addAdminRole({ uid: uid }).then(result => {
+        alert(result.data.message);
+      }).catch(err => {
+        console.error(err);
+        alert('Error assigning admin role.');
+      });
+    }
+
+    // Auto load users on page load
+    window.onload = loadUsers;
   </script>
+
 </body>
 </html>
