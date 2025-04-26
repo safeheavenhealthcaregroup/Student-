@@ -2,19 +2,39 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Student Dashboard</title>
+  <title>Admin Panel</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
-    body { font-family: Arial; background: #eef2f5; padding: 20px; }
+    body { font-family: Arial; background: #f4f4f4; padding: 20px; }
     h2 { margin-top: 0; }
-    .student-card { background: white; padding: 15px; border-radius: 6px; margin-bottom: 10px; box-shadow: 0 0 6px rgba(0,0,0,0.1); }
+    .form-container, .students-container { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 0 8px rgba(0,0,0,0.1); }
+    input, select, button { margin-bottom: 10px; padding: 8px; width: 100%; border: 1px solid #ccc; border-radius: 4px; }
+    button { background: #28a745; color: white; border: none; cursor: pointer; }
+    .student-card { padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 10px; background: #f9f9f9; }
+    .error { color: red; margin-bottom: 10px; }
   </style>
 </head>
 <body>
-  <h2>Student Dashboard</h2>
-  <div id="studentData"></div>
+  <h2>Admin Panel</h2>
+
+  <div class="form-container">
+    <h3>Create / Update Student</h3>
+    <input type="text" id="uid" placeholder="User ID (Leave empty to create new)">
+    <input type="text" id="name" placeholder="Name">
+    <input type="email" id="email" placeholder="Email">
+    <input type="text" id="attendance" placeholder="Attendance (e.g. 80%)">
+    <input type="number" id="attendedClasses" placeholder="Attended Classes">
+    <input type="text" id="teachers" placeholder="Teachers (comma separated)">
+    <button onclick="saveUser()">Save</button>
+    <div class="error" id="formError"></div>
+  </div>
+
+  <div class="students-container">
+    <h3>All Students</h3>
+    <div id="studentsList"></div>
+  </div>
 
   <script>
     const firebaseConfig = {
@@ -31,29 +51,86 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async (user) => {
       if (!user) {
         window.location.href = "login.html";
       } else {
-        db.collection("users").where("role", "==", "student").onSnapshot(snapshot => {
-          const container = document.getElementById("studentData");
-          container.innerHTML = "";
+        const userDoc = await db.collection("users").doc(user.uid).get();
+        if (!userDoc.exists || userDoc.data().role !== "admin") {
+          alert("Access denied. Admins only.");
+          window.location.href = "students.html";
+        } else {
+          loadUsers();
+        }
+      }
+    });
+
+    function saveUser() {
+      const uid = document.getElementById("uid").value.trim();
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const attendance = document.getElementById("attendance").value;
+      const attendedClasses = parseInt(document.getElementById("attendedClasses").value);
+      const teachers = document.getElementById("teachers").value;
+      const formError = document.getElementById("formError");
+
+      if (!name || !email) {
+        formError.textContent = "Name and Email are required.";
+        return;
+      }
+
+      const userData = {
+        name,
+        email,
+        role: "student",
+        attendance: attendance || "0%",
+        attendedClasses: attendedClasses || 0,
+        teachers: teachers || ""
+      };
+
+      if (uid) {
+        db.collection("users").doc(uid).set(userData, { merge: true })
+          .then(() => {
+            formError.textContent = "";
+            loadUsers();
+          })
+          .catch(err => {
+            formError.textContent = err.message;
+          });
+      } else {
+        db.collection("users").add(userData)
+          .then(() => {
+            formError.textContent = "";
+            loadUsers();
+          })
+          .catch(err => {
+            formError.textContent = err.message;
+          });
+      }
+    }
+
+    function loadUsers() {
+      const studentsList = document.getElementById("studentsList");
+      studentsList.innerHTML = "";
+
+      db.collection("users").where("role", "==", "student").get()
+        .then(snapshot => {
           snapshot.forEach(doc => {
             const data = doc.data();
-            const div = document.createElement("div");
-            div.className = "student-card";
-            div.innerHTML = `
+            const card = document.createElement("div");
+            card.className = "student-card";
+            card.innerHTML = `
               <strong>${data.name}</strong><br>
               Email: ${data.email}<br>
               Attendance: ${data.attendance}<br>
               Attended Classes: ${data.attendedClasses}<br>
-              Teachers: ${data.teachers}
+              Teachers: ${data.teachers}<br>
+              <small>User ID: ${doc.id}</small>
             `;
-            container.appendChild(div);
+            studentsList.appendChild(card);
           });
         });
-      }
-    });
+    }
   </script>
 </body>
 </html>
