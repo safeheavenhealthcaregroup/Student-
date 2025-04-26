@@ -29,7 +29,7 @@
       apiKey: "AIzaSyBC-go9YTEF1o15fcYUigCtzMv8yMBZois",
       authDomain: "student-8ee94.firebaseapp.com",
       projectId: "student-8ee94",
-      storageBucket: "student-8ee94.firebasestorage.app",
+      storageBucket: "student-8ee94.appspot.com",
       messagingSenderId: "877165909465",
       appId: "1:877165909465:web:ce5c05f9295547f4c2b5c8",
       measurementId: "G-KRSM7QDXMY"
@@ -39,25 +39,30 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    function login() {
+    async function login() {
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
       const errorMsg = document.getElementById("errorMsg");
 
-      auth.signInWithEmailAndPassword(email, password)
-        .then(async (userCredential) => {
-          const user = userCredential.user;
-          const docSnap = await db.collection("users").doc(user.uid).get();
+      try {
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        const docSnap = await db.collection("users").doc(user.uid).get();
 
-          if (docSnap.exists && docSnap.data().role === "admin") {
-            window.location.href = "admin.html";
+        if (docSnap.exists) {
+          const role = docSnap.data().role;
+          if (role === "admin") {
+            window.location.href = "./admin.html";
           } else {
-            window.location.href = "student.html";
+            window.location.href = "./student.html";
           }
-        })
-        .catch((error) => {
-          errorMsg.textContent = error.message;
-        });
+        } else {
+          errorMsg.textContent = "No user role found.";
+        }
+      } catch (error) {
+        console.error("Login error:", error);
+        errorMsg.textContent = error.message;
+      }
     }
   </script>
 </body>
