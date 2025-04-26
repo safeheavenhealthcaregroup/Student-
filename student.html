@@ -1,20 +1,33 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Student Dashboard</title>
+  <title>Students List</title>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
-    body { font-family: Arial; background: #eef2f5; padding: 20px; }
-    h2 { margin-top: 0; }
-    .student-card { background: white; padding: 15px; border-radius: 6px; margin-bottom: 10px; box-shadow: 0 0 6px rgba(0,0,0,0.1); }
+    body {
+      font-family: Arial, sans-serif;
+      background: #eef2f3;
+      padding: 20px;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    .student-card {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
   </style>
 </head>
 <body>
-  <h2>Student Dashboard</h2>
-  <div id="studentData"></div>
+  <h2>Students List</h2>
+
+  <div id="studentsList"></div>
 
   <script>
     const firebaseConfig = {
@@ -31,29 +44,41 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async (user) => {
       if (!user) {
         window.location.href = "login.html";
-      } else {
-        db.collection("users").where("role", "==", "student").onSnapshot(snapshot => {
-          const container = document.getElementById("studentData");
-          container.innerHTML = "";
-          snapshot.forEach(doc => {
-            const data = doc.data();
-            const div = document.createElement("div");
-            div.className = "student-card";
-            div.innerHTML = `
-              <strong>${data.name}</strong><br>
-              Email: ${data.email}<br>
-              Attendance: ${data.attendance}<br>
-              Attended Classes: ${data.attendedClasses}<br>
-              Teachers: ${data.teachers}
-            `;
-            container.appendChild(div);
-          });
-        });
+        return;
       }
+
+      loadStudents();
     });
+
+    function loadStudents() {
+      const list = document.getElementById("studentsList");
+      list.innerHTML = "";
+
+      db.collection("users").where("role", "==", "student").onSnapshot(snapshot => {
+        list.innerHTML = "";
+
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const div = document.createElement("div");
+          div.className = "student-card";
+          div.innerHTML = `
+            <strong>${d.name}</strong><br>
+            Email: ${d.email}<br>
+            Attendance: ${d.attendance || 'N/A'}<br>
+            Attended Classes: ${d.attendedClasses || 0}<br>
+            Teachers: ${d.teachers || 'N/A'}
+          `;
+          list.appendChild(div);
+        });
+
+        if (snapshot.empty) {
+          list.innerHTML = "No students found.";
+        }
+      });
+    }
   </script>
 </body>
 </html>
