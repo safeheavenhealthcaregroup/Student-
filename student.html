@@ -1,150 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>Student Dashboard</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f7faff;
-      padding: 20px;
-    }
-    .card {
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      padding: 20px;
-      margin: 20px 0;
-    }
-    h2 {
-      color: #004080;
-    }
-    ul {
-      list-style: none;
-      padding: 0;
-    }
-    li {
-      background: #f0f4f8;
-      padding: 10px;
-      margin: 5px 0;
-      border-radius: 5px;
-    }
-    button {
-      padding: 10px 15px;
-      background-color: #004080;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      font-weight: bold;
-      cursor: pointer;
-      margin-top: 10px;
-      margin-right: 10px;
-    }
-    #top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
+    body { font-family: Arial; background: #eef2f5; padding: 20px; }
+    h2 { margin-top: 0; }
+    .student-card { background: white; padding: 15px; border-radius: 6px; margin-bottom: 10px; box-shadow: 0 0 6px rgba(0,0,0,0.1); }
   </style>
 </head>
 <body>
+  <h2>Student Dashboard</h2>
+  <div id="studentData"></div>
 
-  <div id="top-bar">
-    <div>
-      <h2>Welcome, <span id="student-name"></span></h2>
-      <p><strong>Class:</strong> <span id="class-info"></span></p>
-    </div>
-    <div>
-      <button onclick="logout()">Logout</button>
-      <button id="admin-btn" style="display: none;" onclick="goToAdmin()">Admin Panel</button>
-    </div>
-  </div>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBC-go9YTEF1o15fcYUigCtzMv8yMBZois",
+      authDomain: "student-8ee94.firebaseapp.com",
+      projectId: "student-8ee94",
+      storageBucket: "student-8ee94.firebasestorage.app",
+      messagingSenderId: "877165909465",
+      appId: "1:877165909465:web:ce5c05f9295547f4c2b5c8",
+      measurementId: "G-KRSM7QDXMY"
+    };
 
-  <div class="card">
-    <h3>Your Attendance</h3>
-    <ul id="attendance-list"></ul>
-    <button onclick="markAttendance()">Mark Attendance</button>
-  </div>
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-  <div class="card">
-    <h3>Attended Classes</h3>
-    <ul id="class-list"></ul>
-  </div>
-
-  <div class="card">
-    <h3>Teachers</h3>
-    <ul id="teacher-list"></ul>
-  </div>
-
-  <!-- Firebase Scripts -->
-  <script type="module">
-    import { auth, db } from './firebase.js';
-    import {
-      doc, getDoc, updateDoc, arrayUnion
-    } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-
-    let userRef;
-
-    async function loadStudentData() {
-      const user = auth.currentUser;
-      if (!user) return;
-
-      userRef = doc(db, "users", user.uid);
-      const snap = await getDoc(userRef);
-      const data = snap.data();
-
-      if (!data) {
-        alert("User data not found.");
-        return;
-      }
-
-      document.getElementById("student-name").innerText = data.name || "Student";
-      document.getElementById("class-info").innerText = data.class || "N/A";
-
-      document.getElementById("attendance-list").innerHTML =
-        data.attendance?.map(d => `<li>${d}</li>`).join('') || "<li>No attendance</li>";
-
-      document.getElementById("class-list").innerHTML =
-        data.attendedClasses?.map(c => `<li>${c}</li>`).join('') || "<li>No classes attended</li>";
-
-      document.getElementById("teacher-list").innerHTML =
-        data.teachers?.map(t => `<li>${t}</li>`).join('') || "<li>No teachers listed</li>";
-
-      if (data.role === 'admin') {
-        document.getElementById("admin-btn").style.display = "inline-block";
-      }
-    }
-
-    async function markAttendance() {
-      const today = new Date().toISOString().split("T")[0];
-      await updateDoc(userRef, {
-        attendance: arrayUnion(today)
-      });
-      alert("Attendance marked!");
-      loadStudentData();
-    }
-
-    function logout() {
-      auth.signOut().then(() => {
+    auth.onAuthStateChanged(user => {
+      if (!user) {
         window.location.href = "login.html";
-      });
-    }
-
-    function goToAdmin() {
-      window.location.href = "admin.html";
-    }
-
-    window.markAttendance = markAttendance;
-    window.logout = logout;
-    window.goToAdmin = goToAdmin;
-
-    auth.onAuthStateChanged((user) => {
-      if (user) {
-        loadStudentData();
       } else {
-        window.location.href = "login.html";
+        db.collection("users").where("role", "==", "student").onSnapshot(snapshot => {
+          const container = document.getElementById("studentData");
+          container.innerHTML = "";
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            const div = document.createElement("div");
+            div.className = "student-card";
+            div.innerHTML = `
+              <strong>${data.name}</strong><br>
+              Email: ${data.email}<br>
+              Attendance: ${data.attendance}<br>
+              Attended Classes: ${data.attendedClasses}<br>
+              Teachers: ${data.teachers}
+            `;
+            container.appendChild(div);
+          });
+        });
       }
     });
   </script>
