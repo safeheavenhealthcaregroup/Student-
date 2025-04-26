@@ -1,159 +1,137 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin Panel</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f0f2f5;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f5f8fc;
       padding: 20px;
     }
     h2 {
-      font-size: 24px;
-      margin-bottom: 20px;
+      color: #004080;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
+    .student-card {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
-    th, td {
-      padding: 10px 15px;
-      border: 1px solid #ddd;
-      text-align: left;
-    }
-    th {
-      background: #343a40;
-      color: white;
-    }
-    input {
+    input, textarea {
       width: 100%;
-      padding: 6px;
-      box-sizing: border-box;
+      margin: 5px 0 15px;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
     }
-    .btn {
-      padding: 6px 12px;
-      border: none;
-      color: white;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    .btn-edit {
-      background: #007bff;
-    }
-    .btn-save {
-      background: #28a745;
-    }
-    .hidden {
-      display: none;
-    }
-    .error {
-      color: red;
+    label {
       font-weight: bold;
+    }
+    button {
+      padding: 10px;
+      background-color: #004080;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #logoutBtn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background-color: crimson;
     }
   </style>
 </head>
 <body>
-  <h2>Admin Panel - Manage Users</h2>
-  <p id="error" class="error hidden">You are not authorized to view this page.</p>
-  <table id="userTable" class="hidden">
-    <thead>
-      <tr>
-        <th>Email</th>
-        <th>Name</th>
-        <th>Role</th>
-        <th>Attendance</th>
-        <th>Attended Classes</th>
-        <th>Teachers</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody id="userTableBody"></tbody>
-  </table>
 
-  <script>
-    // Firebase config
-    const firebaseConfig = {
-      apiKey: "AIzaSyBC-go9YTEF1o15fcYUigCtzMv8yMBZois",
-      authDomain: "student-8ee94.firebaseapp.com",
-      projectId: "student-8ee94",
-      storageBucket: "student-8ee94.firebasestorage.app",
-      messagingSenderId: "877165909465",
-      appId: "1:877165909465:web:ce5c05f9295547f4c2b5c8",
-      measurementId: "G-KRSM7QDXMY"
-    };
+  <button id="logoutBtn">Logout</button>
+  <h2>Admin Panel - Manage Student Data</h2>
+  <div id="students-container">Loading students...</div>
 
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+  <script type="module">
+    import { auth, db } from './firebase.js';
+    import {
+      collection, getDocs, updateDoc, doc
+    } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
-    const userTable = document.getElementById('userTable');
-    const userTableBody = document.getElementById('userTableBody');
-    const errorMessage = document.getElementById('error');
+    const container = document.getElementById("students-container");
 
-    let editingId = null;
-    let editedData = {};
+    async function loadStudents() {
+      const snapshot = await getDocs(collection(db, "users"));
+      container.innerHTML = "";
 
-    // Check admin role
+      snapshot.forEach(docSnap => {
+        const student = docSnap.data();
+        const uid = docSnap.id;
+
+        const div = document.createElement("div");
+        div.classList.add("student-card");
+        div.innerHTML = `
+          <h3>${student.name || 'Unnamed Student'}</h3>
+          <label>Name:</label>
+          <input type="text" id="name-${uid}" value="${student.name || ''}" />
+
+          <label>Class:</label>
+          <input type="text" id="class-${uid}" value="${student.class || ''}" />
+
+          <label>Attendance (comma-separated dates):</label>
+          <textarea id="attendance-${uid}">${(student.attendance || []).join(", ")}</textarea>
+
+          <label>Attended Classes:</label>
+          <textarea id="classes-${uid}">${(student.attendedClasses || []).join(", ")}</textarea>
+
+          <label>Teachers:</label>
+          <textarea id="teachers-${uid}">${(student.teachers || []).join(", ")}</textarea>
+
+          <button onclick="updateStudent('${uid}')">Update</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    window.updateStudent = async function(uid) {
+      const name = document.getElementById(`name-${uid}`).value.trim();
+      const className = document.getElementById(`class-${uid}`).value.trim();
+      const attendance = document.getElementById(`attendance-${uid}`).value.split(',').map(d => d.trim()).filter(Boolean);
+      const classes = document.getElementById(`classes-${uid}`).value.split(',').map(d => d.trim()).filter(Boolean);
+      const teachers = document.getElementById(`teachers-${uid}`).value.split(',').map(d => d.trim()).filter(Boolean);
+
+      const userRef = doc(db, "users", uid);
+      await updateDoc(userRef, {
+        name,
+        class: className,
+        attendance,
+        attendedClasses: classes,
+        teachers
+      });
+
+      alert("Updated successfully!");
+    }
+
     auth.onAuthStateChanged(async (user) => {
       if (user) {
-        const doc = await db.collection('users').doc(user.uid).get();
-        const userData = doc.data();
-
-        if (userData && userData.role === 'admin') {
-          userTable.classList.remove('hidden');
-          loadUsers();
+        const userDoc = await db.collection("admins").doc(user.uid).get();
+        if (userDoc.exists) {
+          loadStudents();
         } else {
-          errorMessage.classList.remove('hidden');
+          alert("Access denied. You are not an admin.");
+          window.location.href = "login.html";
         }
       } else {
-        errorMessage.textContent = 'You must be logged in to access this page.';
-        errorMessage.classList.remove('hidden');
+        window.location.href = "login.html";
       }
     });
 
-    const loadUsers = async () => {
-      userTableBody.innerHTML = '';
-      const snapshot = await db.collection('users').get();
-      snapshot.forEach(doc => {
-        const user = doc.data();
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${editingId === doc.id ? `<input value="${user.email || ''}" onchange="editedData.email = this.value">` : user.email || ''}</td>
-          <td>${editingId === doc.id ? `<input value="${user.name || ''}" onchange="editedData.name = this.value">` : user.name || ''}</td>
-          <td>${editingId === doc.id ? `<input value="${user.role || ''}" onchange="editedData.role = this.value">` : user.role || ''}</td>
-          <td>${editingId === doc.id ? `<input value="${user.attendance || ''}" onchange="editedData.attendance = this.value">` : user.attendance || ''}</td>
-          <td>${editingId === doc.id ? `<input value="${user.attendedClasses || ''}" onchange="editedData.attendedClasses = this.value">` : user.attendedClasses || ''}</td>
-          <td>${editingId === doc.id ? `<input value="${user.teachers || ''}" onchange="editedData.teachers = this.value">` : user.teachers || ''}</td>
-          <td>
-            ${editingId === doc.id
-              ? `<button class="btn btn-save" onclick="saveUser('${doc.id}')">Save</button>`
-              : `<button class="btn btn-edit" onclick='editUser("${doc.id}", ${JSON.stringify(user).replace(/"/g, '&quot;')})'>Edit</button>`
-            }
-          </td>
-        `;
-        userTableBody.appendChild(row);
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      auth.signOut().then(() => {
+        window.location.href = "login.html";
       });
-    };
-
-    function editUser(id, user) {
-      editingId = id;
-      editedData = { ...user };
-      loadUsers();
-    }
-
-    async function saveUser(id) {
-      await db.collection('users').doc(id).update(editedData);
-      editingId = null;
-      editedData = {};
-      loadUsers();
-    }
+    });
   </script>
 </body>
 </html>
