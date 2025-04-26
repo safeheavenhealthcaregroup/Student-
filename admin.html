@@ -7,26 +7,69 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
-    body { font-family: Arial; background: #f4f4f4; padding: 20px; }
-    h2 { margin-top: 0; }
-    .form-container, .students-container { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 0 8px rgba(0,0,0,0.1); }
-    input, select, button { margin-bottom: 10px; padding: 8px; width: 100%; border: 1px solid #ccc; border-radius: 4px; }
-    button { background: #28a745; color: white; border: none; cursor: pointer; }
-    .student-card { padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 10px; background: #f9f9f9; }
-    .error { color: red; margin-bottom: 10px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+    h2, h3 {
+      margin-top: 0;
+    }
+    .form-container, .students-container {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    input, button {
+      margin-bottom: 10px;
+      padding: 10px;
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #28a745;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button.delete {
+      background: #dc3545;
+      margin-top: 5px;
+    }
+    .student-card {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ddd;
+      cursor: pointer;
+    }
+    .error {
+      color: red;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    .selected {
+      border: 2px solid #007bff;
+    }
   </style>
 </head>
 <body>
   <h2>Admin Panel</h2>
 
   <div class="form-container">
-    <h3>Create / Update Student</h3>
-    <input type="text" id="uid" placeholder="User ID (Leave empty to create new)">
+    <h3 id="formTitle">Create / Update Student</h3>
+    <input type="text" id="uid" placeholder="User ID (auto-filled for update)">
     <input type="text" id="name" placeholder="Name">
     <input type="email" id="email" placeholder="Email">
     <input type="text" id="attendance" placeholder="Attendance (e.g. 80%)">
     <input type="number" id="attendedClasses" placeholder="Attended Classes">
-    <input type="text" id="teachers" placeholder="Teachers (comma separated)">
+    <input type="text" id="teachers" placeholder="Teachers (comma-separated)">
     <button onclick="saveUser()">Save</button>
     <div class="error" id="formError"></div>
   </div>
@@ -51,31 +94,31 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
+    let selectedCard = null;
+
     auth.onAuthStateChanged(async (user) => {
-      if (!user) {
-        window.location.href = "login.html";
-      } else {
-        const userDoc = await db.collection("users").doc(user.uid).get();
-        if (!userDoc.exists || userDoc.data().role !== "admin") {
-          alert("Access denied. Admins only.");
-          window.location.href = "students.html";
-        } else {
-          loadUsers();
-        }
+      if (!user) return window.location.href = "login.html";
+
+      const userDoc = await db.collection("users").doc(user.uid).get();
+      if (!userDoc.exists || userDoc.data().role !== "admin") {
+        alert("Access denied. Admins only.");
+        return window.location.href = "students.html";
       }
+
+      loadUsers();
     });
 
     function saveUser() {
       const uid = document.getElementById("uid").value.trim();
-      const name = document.getElementById("name").value;
-      const email = document.getElementById("email").value;
-      const attendance = document.getElementById("attendance").value;
-      const attendedClasses = parseInt(document.getElementById("attendedClasses").value);
-      const teachers = document.getElementById("teachers").value;
-      const formError = document.getElementById("formError");
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const attendance = document.getElementById("attendance").value.trim();
+      const attendedClasses = parseInt(document.getElementById("attendedClasses").value.trim()) || 0;
+      const teachers = document.getElementById("teachers").value.trim();
+      const errorDiv = document.getElementById("formError");
 
       if (!name || !email) {
-        formError.textContent = "Name and Email are required.";
+        errorDiv.textContent = "Name and Email are required.";
         return;
       }
 
@@ -84,52 +127,85 @@
         email,
         role: "student",
         attendance: attendance || "0%",
-        attendedClasses: attendedClasses || 0,
-        teachers: teachers || ""
+        attendedClasses,
+        teachers
       };
 
-      if (uid) {
-        db.collection("users").doc(uid).set(userData, { merge: true })
-          .then(() => {
-            formError.textContent = "";
-            loadUsers();
-          })
-          .catch(err => {
-            formError.textContent = err.message;
-          });
-      } else {
-        db.collection("users").add(userData)
-          .then(() => {
-            formError.textContent = "";
-            loadUsers();
-          })
-          .catch(err => {
-            formError.textContent = err.message;
-          });
+      const docRef = uid ? db.collection("users").doc(uid) : db.collection("users").doc();
+      docRef.set(userData, { merge: true })
+        .then(() => {
+          errorDiv.textContent = "";
+          clearForm();
+          loadUsers();
+        })
+        .catch(err => {
+          errorDiv.textContent = "Error: " + err.message;
+        });
+    }
+
+    function clearForm() {
+      document.getElementById("uid").value = "";
+      document.getElementById("name").value = "";
+      document.getElementById("email").value = "";
+      document.getElementById("attendance").value = "";
+      document.getElementById("attendedClasses").value = "";
+      document.getElementById("teachers").value = "";
+      document.getElementById("formTitle").innerText = "Create / Update Student";
+
+      if (selectedCard) {
+        selectedCard.classList.remove("selected");
+        selectedCard = null;
       }
     }
 
     function loadUsers() {
-      const studentsList = document.getElementById("studentsList");
-      studentsList.innerHTML = "";
+      const list = document.getElementById("studentsList");
+      list.innerHTML = "";
 
       db.collection("users").where("role", "==", "student").get()
         .then(snapshot => {
           snapshot.forEach(doc => {
-            const data = doc.data();
-            const card = document.createElement("div");
-            card.className = "student-card";
-            card.innerHTML = `
-              <strong>${data.name}</strong><br>
-              Email: ${data.email}<br>
-              Attendance: ${data.attendance}<br>
-              Attended Classes: ${data.attendedClasses}<br>
-              Teachers: ${data.teachers}<br>
-              <small>User ID: ${doc.id}</small>
+            const d = doc.data();
+            const div = document.createElement("div");
+            div.className = "student-card";
+            div.innerHTML = `
+              <strong>${d.name}</strong><br>
+              Email: ${d.email}<br>
+              Attendance: ${d.attendance}<br>
+              Attended Classes: ${d.attendedClasses}<br>
+              Teachers: ${d.teachers}<br>
+              <small>ID: ${doc.id}</small><br>
+              <button class="delete" onclick="event.stopPropagation(); deleteUser('${doc.id}')">Delete</button>
             `;
-            studentsList.appendChild(card);
+            div.onclick = () => selectUser(doc.id, d);
+            list.appendChild(div);
           });
         });
+    }
+
+    function selectUser(id, data) {
+      document.getElementById("uid").value = id;
+      document.getElementById("name").value = data.name;
+      document.getElementById("email").value = data.email;
+      document.getElementById("attendance").value = data.attendance;
+      document.getElementById("attendedClasses").value = data.attendedClasses;
+      document.getElementById("teachers").value = data.teachers;
+      document.getElementById("formTitle").innerText = "Edit Student";
+
+      if (selectedCard) selectedCard.classList.remove("selected");
+      selectedCard = document.querySelector(`small:contains('${id}')`)?.parentElement || null;
+      if (selectedCard) selectedCard.classList.add("selected");
+    }
+
+    function deleteUser(uid) {
+      if (confirm("Are you sure you want to delete this student?")) {
+        db.collection("users").doc(uid).delete()
+          .then(() => {
+            loadUsers();
+            clearForm();
+          })
+          .catch(err => alert("Error deleting user: " + err.message));
+      }
     }
   </script>
 </body>
