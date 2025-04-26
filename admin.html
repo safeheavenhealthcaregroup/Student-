@@ -1,137 +1,180 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>Admin Panel</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #f5f8fc;
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
       padding: 20px;
     }
-    h2 {
-      color: #004080;
+    h2, h3 {
+      margin-top: 0;
     }
-    .student-card {
-      background: #ffffff;
+    .form-container, .students-container {
+      background: white;
+      padding: 20px;
       border-radius: 10px;
-      padding: 20px;
       margin-bottom: 20px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    input, textarea {
+    input, button {
+      margin-bottom: 10px;
+      padding: 10px;
       width: 100%;
-      margin: 5px 0 15px;
-      padding: 8px;
-      border-radius: 5px;
+      box-sizing: border-box;
+      border-radius: 6px;
       border: 1px solid #ccc;
     }
-    label {
-      font-weight: bold;
-    }
     button {
-      padding: 10px;
-      background-color: #004080;
+      background: #28a745;
       color: white;
       border: none;
-      border-radius: 5px;
       font-weight: bold;
-      cursor: pointer;
     }
-    #logoutBtn {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background-color: crimson;
+    button.delete {
+      background: #dc3545;
+    }
+    .student-card {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ddd;
+    }
+    .error {
+      color: red;
+      font-size: 14px;
+      margin-bottom: 10px;
     }
   </style>
 </head>
 <body>
+  <h2>Admin Panel</h2>
 
-  <button id="logoutBtn">Logout</button>
-  <h2>Admin Panel - Manage Student Data</h2>
-  <div id="students-container">Loading students...</div>
+  <div class="form-container">
+    <h3>Create / Update Student</h3>
+    <input type="text" id="uid" placeholder="User ID (for update only)">
+    <input type="text" id="name" placeholder="Name">
+    <input type="email" id="email" placeholder="Email">
+    <input type="text" id="attendance" placeholder="Attendance (e.g. 80%)">
+    <input type="number" id="attendedClasses" placeholder="Attended Classes">
+    <input type="text" id="teachers" placeholder="Teachers (comma-separated)">
+    <button onclick="saveUser()">Save</button>
+    <div class="error" id="formError"></div>
+  </div>
 
-  <script type="module">
-    import { auth, db } from './firebase.js';
-    import {
-      collection, getDocs, updateDoc, doc
-    } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+  <div class="students-container">
+    <h3>All Students</h3>
+    <div id="studentsList"></div>
+  </div>
 
-    const container = document.getElementById("students-container");
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBC-go9YTEF1o15fcYUigCtzMv8yMBZois",
+      authDomain: "student-8ee94.firebaseapp.com",
+      projectId: "student-8ee94",
+      storageBucket: "student-8ee94.firebasestorage.app",
+      messagingSenderId: "877165909465",
+      appId: "1:877165909465:web:ce5c05f9295547f4c2b5c8",
+      measurementId: "G-KRSM7QDXMY"
+    };
 
-    async function loadStudents() {
-      const snapshot = await getDocs(collection(db, "users"));
-      container.innerHTML = "";
-
-      snapshot.forEach(docSnap => {
-        const student = docSnap.data();
-        const uid = docSnap.id;
-
-        const div = document.createElement("div");
-        div.classList.add("student-card");
-        div.innerHTML = `
-          <h3>${student.name || 'Unnamed Student'}</h3>
-          <label>Name:</label>
-          <input type="text" id="name-${uid}" value="${student.name || ''}" />
-
-          <label>Class:</label>
-          <input type="text" id="class-${uid}" value="${student.class || ''}" />
-
-          <label>Attendance (comma-separated dates):</label>
-          <textarea id="attendance-${uid}">${(student.attendance || []).join(", ")}</textarea>
-
-          <label>Attended Classes:</label>
-          <textarea id="classes-${uid}">${(student.attendedClasses || []).join(", ")}</textarea>
-
-          <label>Teachers:</label>
-          <textarea id="teachers-${uid}">${(student.teachers || []).join(", ")}</textarea>
-
-          <button onclick="updateStudent('${uid}')">Update</button>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    window.updateStudent = async function(uid) {
-      const name = document.getElementById(`name-${uid}`).value.trim();
-      const className = document.getElementById(`class-${uid}`).value.trim();
-      const attendance = document.getElementById(`attendance-${uid}`).value.split(',').map(d => d.trim()).filter(Boolean);
-      const classes = document.getElementById(`classes-${uid}`).value.split(',').map(d => d.trim()).filter(Boolean);
-      const teachers = document.getElementById(`teachers-${uid}`).value.split(',').map(d => d.trim()).filter(Boolean);
-
-      const userRef = doc(db, "users", uid);
-      await updateDoc(userRef, {
-        name,
-        class: className,
-        attendance,
-        attendedClasses: classes,
-        teachers
-      });
-
-      alert("Updated successfully!");
-    }
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
     auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        const userDoc = await db.collection("admins").doc(user.uid).get();
-        if (userDoc.exists) {
-          loadStudents();
-        } else {
-          alert("Access denied. You are not an admin.");
-          window.location.href = "login.html";
-        }
-      } else {
-        window.location.href = "login.html";
+      if (!user) return window.location.href = "login.html";
+
+      const userDoc = await db.collection("users").doc(user.uid).get();
+      if (!userDoc.exists || userDoc.data().role !== "admin") {
+        alert("Access denied. Admins only.");
+        return window.location.href = "students.html";
       }
+
+      loadUsers();
     });
 
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-      auth.signOut().then(() => {
-        window.location.href = "login.html";
-      });
-    });
+    function saveUser() {
+      const uid = document.getElementById("uid").value.trim();
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const attendance = document.getElementById("attendance").value.trim();
+      const attendedClasses = parseInt(document.getElementById("attendedClasses").value.trim()) || 0;
+      const teachers = document.getElementById("teachers").value.trim();
+      const errorDiv = document.getElementById("formError");
+
+      if (!name || !email) {
+        errorDiv.textContent = "Name and Email are required.";
+        return;
+      }
+
+      const userData = {
+        name,
+        email,
+        role: "student",
+        attendance: attendance || "0%",
+        attendedClasses,
+        teachers
+      };
+
+      const docRef = uid ? db.collection("users").doc(uid) : db.collection("users").doc();
+      docRef.set(userData, { merge: true })
+        .then(() => {
+          errorDiv.textContent = "";
+          clearForm();
+          loadUsers();
+        })
+        .catch(err => {
+          errorDiv.textContent = "Error: " + err.message;
+        });
+    }
+
+    function clearForm() {
+      document.getElementById("uid").value = "";
+      document.getElementById("name").value = "";
+      document.getElementById("email").value = "";
+      document.getElementById("attendance").value = "";
+      document.getElementById("attendedClasses").value = "";
+      document.getElementById("teachers").value = "";
+    }
+
+    function loadUsers() {
+      const list = document.getElementById("studentsList");
+      list.innerHTML = "";
+
+      db.collection("users").where("role", "==", "student").get()
+        .then(snapshot => {
+          snapshot.forEach(doc => {
+            const d = doc.data();
+            const div = document.createElement("div");
+            div.className = "student-card";
+            div.innerHTML = `
+              <strong>${d.name}</strong><br>
+              Email: ${d.email}<br>
+              Attendance: ${d.attendance}<br>
+              Attended Classes: ${d.attendedClasses}<br>
+              Teachers: ${d.teachers}<br>
+              <small>ID: ${doc.id}</small><br>
+              <button class="delete" onclick="deleteUser('${doc.id}')">Delete</button>
+            `;
+            list.appendChild(div);
+          });
+        });
+    }
+
+    function deleteUser(uid) {
+      if (confirm("Are you sure you want to delete this student?")) {
+        db.collection("users").doc(uid).delete()
+          .then(() => loadUsers())
+          .catch(err => alert("Error deleting user: " + err.message));
+      }
+    }
   </script>
 </body>
 </html>
