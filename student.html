@@ -18,7 +18,7 @@
     header {
       background-color: #4f46e5;
       color: white;
-      padding: 15px 20px;
+      padding: 15px;
       text-align: center;
       font-size: 24px;
       font-weight: 600;
@@ -89,10 +89,9 @@
   <button id="logoutBtn">Logout</button>
 </footer>
 
-<!-- Firebase scripts -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+  import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
   import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -114,44 +113,38 @@
 
   onAuthStateChanged(auth, async (user) => {
     if (user) {
-      const userEmail = user.email;
-      console.log("Logged in as:", userEmail);
+      const email = user.email;
 
       try {
-        const querySnapshot = await getDocs(collection(db, "users"));
-        let found = false;
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("email", "==", email));
+        const querySnapshot = await getDocs(q);
 
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
+        if (!querySnapshot.empty) {
+          const userData = querySnapshot.docs[0].data();
 
-          if (data.email === userEmail) {
-            found = true;
-
-            if (data.role !== "admin") {
-              studentDetailsDiv.innerHTML = `
-                <div class="card">
-                  <h2>${data.name || "No Name"}</h2>
-                  <p><strong>Email:</strong> ${data.email}</p>
-                  <p><strong>Attendance:</strong> ${data.attendance || "Not updated"}</p>
-                  <p><strong>Attended Classes:</strong> ${data.attendedClasses || 0}</p>
-                  <p><strong>Teachers:</strong> ${(data.teachers || []).join(', ')}</p>
-                </div>
-              `;
-            } else {
-              studentDetailsDiv.innerHTML = `<p>You are an admin. No student data to display here.</p>`;
-            }
+          if (userData.role !== "admin") {
+            studentDetailsDiv.innerHTML = `
+              <div class="card">
+                <h2>${userData.name || "No Name"}</h2>
+                <p><strong>Email:</strong> ${userData.email || "Not available"}</p>
+                <p><strong>Attendance:</strong> ${userData.attendance || "Not updated"}</p>
+                <p><strong>Attended Classes:</strong> ${userData.attendedClasses || 0}</p>
+                <p><strong>Teachers:</strong> ${(userData.teachers || []).join(', ')}</p>
+              </div>
+            `;
+          } else {
+            studentDetailsDiv.innerHTML = `<p>You are an admin. No student data to display.</p>`;
           }
-        });
 
-        if (!found) {
-          studentDetailsDiv.innerHTML = `<p>No student record found for your account.</p>`;
+        } else {
+          studentDetailsDiv.innerHTML = `<p>No student data found for your account.</p>`;
         }
 
       } catch (error) {
-        console.error("Error loading data:", error);
+        console.error("Error fetching user data:", error);
         studentDetailsDiv.innerHTML = `<p>Something went wrong while loading your data.</p>`;
       }
-
     } else {
       window.location.href = "login.html";
     }
