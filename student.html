@@ -4,109 +4,108 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Student Dashboard</title>
-  <link rel="stylesheet" href="your-style.css"> <!-- Link your existing CSS -->
+  <link rel="stylesheet" href="style.css"> <!-- Your external CSS file -->
   <style>
-    /* You can remove this style if already handled in your CSS */
-    .container {
-      max-width: 600px;
-      margin: 50px auto;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      background: #fff;
-    }
-    .student-info {
-      margin-top: 20px;
-    }
-    .student-info p {
-      font-size: 1.1rem;
-      margin-bottom: 10px;
-      color: #333;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    button {
-      display: block;
-      margin: 30px auto 0;
-      padding: 10px 20px;
-      font-size: 1rem;
-      border: none;
-      border-radius: 8px;
-      background: #007BFF;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #0056b3;
+    /* Small inline style for success alert (you can move to css file if you want) */
+    #success-alert {
+      display: none;
+      padding: 10px;
+      margin-top: 10px;
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      border-radius: 5px;
     }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <h1>Student Dashboard</h1>
-  <div id="student-data" class="student-info">
-    <!-- Student data will be shown here -->
+  <div class="container">
+    <h1>Student Dashboard</h1>
+
+    <div id="student-data">
+      <p>Loading your data...</p>
+    </div>
+
+    <div id="success-alert">Your data was updated!</div>
+
+    <button onclick="logout()" class="logout-button">Logout</button>
   </div>
 
-  <button onclick="logout()">Logout</button>
-</div>
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+    import { getFirestore, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-<!-- Firebase scripts -->
-<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js"></script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBC-go9YTEF1o15fcYUigCtzMv8yMBZois",
+      authDomain: "student-8ee94.firebaseapp.com",
+      projectId: "student-8ee94",
+      storageBucket: "student-8ee94.appspot.com",
+      messagingSenderId: "877165909465",
+      appId: "1:877165909465:web:ce5c05f9295547f4c2b5c8",
+      measurementId: "G-KRSM7QDXMY"
+    };
 
-<script src="firebase-config.js"></script> <!-- Your Firebase Config -->
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-<script type="module">
-  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+    let previousData = {}; // to detect if data changed
 
-  const auth = getAuth();
-  const db = getFirestore();
-
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      const uid = user.uid;
-      const userDocRef = doc(db, "users", uid);
-
-      try {
-        const userDoc = await getDoc(userDocRef);
-
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-
-          document.getElementById('student-data').innerHTML = `
-            <p><strong>Full Name:</strong> ${data.name || 'Not Available'}</p>
-            <p><strong>Email Address:</strong> ${data.email || 'Not Available'}</p>
-            <p><strong>Attendance:</strong> ${data.attendance || 'Not Updated'}</p>
-            <p><strong>Attended Classes:</strong> ${data.attendedClasses || 'Not Updated'}</p>
-            <p><strong>Assigned Teacher:</strong> ${data.teacher || 'Not Assigned'}</p>
-          `;
-        } else {
-          document.getElementById('student-data').innerHTML = "<p>No student data found!</p>";
-        }
-      } catch (error) {
-        console.error("Error fetching student data:", error);
-        alert("Failed to load data.");
-      }
-
-    } else {
-      window.location.href = "login.html"; // Not logged in, go back to login page
+    function updateStudentData(userData) {
+      document.getElementById('student-data').innerHTML = `
+        <h2>Welcome, ${userData.name || "Student"}!</h2>
+        <p><strong>Email:</strong> ${userData.email || "Not Available"}</p>
+        <p><strong>Attendance:</strong> ${userData.attendance || "Not Updated"}</p>
+        <p><strong>Attended Classes:</strong> ${userData.attendedClasses || "Not Updated"}</p>
+        <p><strong>Assigned Teacher:</strong> ${userData.teacher || "Not Assigned"}</p>
+      `;
     }
-  });
 
-  function logout() {
-    signOut(auth).then(() => {
-      window.location.href = "login.html";
-    }).catch((error) => {
-      console.error("Logout error", error);
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const userEmail = user.email;
+        const q = query(collection(db, "users"), where("email", "==", userEmail));
+
+        onSnapshot(q, (querySnapshot) => {
+          if (!querySnapshot.empty) {
+            const userData = querySnapshot.docs[0].data();
+
+            // Compare old data and new data
+            if (JSON.stringify(userData) !== JSON.stringify(previousData)) {
+              updateStudentData(userData);
+              showSuccessAlert(); // Show success when data changed
+              previousData = userData; // Update previous data
+            }
+          } else {
+            document.getElementById('student-data').innerHTML = "<p>No student record found for your account.</p>";
+          }
+        });
+
+      } else {
+        // Not logged in
+        window.location.href = "login.html";
+      }
     });
-  }
-</script>
+
+    function logout() {
+      signOut(auth).then(() => {
+        window.location.href = "login.html";
+      }).catch((error) => {
+        console.error("Logout Error", error);
+      });
+    }
+
+    function showSuccessAlert() {
+      const alertBox = document.getElementById('success-alert');
+      alertBox.style.display = 'block';
+      setTimeout(() => {
+        alertBox.style.display = 'none';
+      }, 3000); // Hide after 3 seconds
+    }
+  </script>
 
 </body>
 </html>
