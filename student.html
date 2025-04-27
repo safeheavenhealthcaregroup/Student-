@@ -4,99 +4,167 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Student Panel</title>
-  <link rel="stylesheet" href="your-student.css"> <!-- Link your existing CSS here -->
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      background-color: #4f46e5;
+      color: white;
+      padding: 15px 20px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    #studentDetails {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+    }
+
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .card h2 {
+      margin-bottom: 10px;
+      color: #4f46e5;
+    }
+
+    .card p {
+      margin: 8px 0;
+      font-size: 16px;
+      color: #333;
+    }
+
+    footer {
+      padding: 10px;
+      text-align: center;
+      background-color: #4f46e5;
+      color: white;
+      font-size: 14px;
+    }
+
+    button#logoutBtn {
+      margin-top: 20px;
+      background-color: #ef4444;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button#logoutBtn:hover {
+      background-color: #dc2626;
+    }
+  </style>
 </head>
 <body>
 
-  <div class="container">
-    <h1>Student Dashboard</h1>
+<header>Student Panel</header>
 
-    <div id="studentDetails" class="student-card">
-      <p>Loading your data...</p>
-    </div>
+<div id="studentDetails">
+  <p>Loading your data...</p>
+</div>
 
-    <button id="logoutBtn" class="logout-button">Logout</button>
-  </div>
+<footer>
+  <button id="logoutBtn">Logout</button>
+</footer>
 
-  <!-- Firebase Scripts -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-    import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+<!-- Firebase scripts -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
-    // Your Firebase config
-    const firebaseConfig = {
-      apiKey: "AIzaSyBC-go9YTEF1o15fcYUigCtzMv8yMBZois",
-      authDomain: "student-8ee94.firebaseapp.com",
-      projectId: "student-8ee94",
-      storageBucket: "student-8ee94.appspot.com",
-      messagingSenderId: "877165909465",
-      appId: "1:877165909465:web:ce5c05f9295547f4c2b5c8",
-      measurementId: "G-KRSM7QDXMY"
-    };
+  const firebaseConfig = {
+    apiKey: "AIzaSyBC-go9YTEF1o15fcYUigCtzMv8yMBZois",
+    authDomain: "student-8ee94.firebaseapp.com",
+    projectId: "student-8ee94",
+    storageBucket: "student-8ee94.appspot.com",
+    messagingSenderId: "877165909465",
+    appId: "1:877165909465:web:ce5c05f9295547f4c2b5c8",
+    measurementId: "G-KRSM7QDXMY"
+  };
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
 
-    const studentDetailsDiv = document.getElementById('studentDetails');
-    const logoutBtn = document.getElementById('logoutBtn');
+  const studentDetailsDiv = document.getElementById('studentDetails');
+  const logoutBtn = document.getElementById('logoutBtn');
 
-    // Load user data
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userEmail = user.email;
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const userEmail = user.email;
+      console.log("Logged in as:", userEmail);
 
-        try {
-          const q = query(
-            collection(db, "users"),
-            where("email", "==", userEmail)
-          );
+      try {
+        const querySnapshot = await getDocs(collection(db, "users"));
+        let found = false;
 
-          const querySnapshot = await getDocs(q);
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
 
-          if (querySnapshot.empty) {
-            studentDetailsDiv.innerHTML = `<p>No student data found for your account.</p>`;
-          } else {
-            querySnapshot.forEach((doc) => {
-              const data = doc.data();
+          if (data.email === userEmail) {
+            found = true;
 
-              if (data.role !== "admin") {
-                studentDetailsDiv.innerHTML = `
-                  <div class="card">
-                    <h2>${data.name}</h2>
-                    <p><strong>Email:</strong> ${data.email}</p>
-                    <p><strong>Attendance:</strong> ${data.attendance}</p>
-                    <p><strong>Attended Classes:</strong> ${data.attendedClasses}</p>
-                    <p><strong>Teachers:</strong> ${data.teachers.join(', ')}</p>
-                  </div>
-                `;
-              } else {
-                studentDetailsDiv.innerHTML = `<p>You are an admin. No student data to display here.</p>`;
-              }
-            });
+            if (data.role !== "admin") {
+              studentDetailsDiv.innerHTML = `
+                <div class="card">
+                  <h2>${data.name || "No Name"}</h2>
+                  <p><strong>Email:</strong> ${data.email}</p>
+                  <p><strong>Attendance:</strong> ${data.attendance || "Not updated"}</p>
+                  <p><strong>Attended Classes:</strong> ${data.attendedClasses || 0}</p>
+                  <p><strong>Teachers:</strong> ${(data.teachers || []).join(', ')}</p>
+                </div>
+              `;
+            } else {
+              studentDetailsDiv.innerHTML = `<p>You are an admin. No student data to display here.</p>`;
+            }
           }
-        } catch (error) {
-          console.error("Error fetching student data:", error);
-          studentDetailsDiv.innerHTML = `<p>Something went wrong loading your data.</p>`;
+        });
+
+        if (!found) {
+          studentDetailsDiv.innerHTML = `<p>No student record found for your account.</p>`;
         }
 
-      } else {
-        window.location.href = "login.html";
+      } catch (error) {
+        console.error("Error loading data:", error);
+        studentDetailsDiv.innerHTML = `<p>Something went wrong while loading your data.</p>`;
       }
-    });
 
-    // Logout button
-    logoutBtn.addEventListener('click', () => {
-      signOut(auth).then(() => {
-        window.location.href = "login.html";
-      }).catch((error) => {
-        console.error("Error signing out:", error);
-      });
-    });
+    } else {
+      window.location.href = "login.html";
+    }
+  });
 
-  </script>
+  logoutBtn.addEventListener('click', () => {
+    signOut(auth).then(() => {
+      window.location.href = "login.html";
+    }).catch((error) => {
+      console.error("Logout Error:", error);
+    });
+  });
+</script>
 
 </body>
 </html>
