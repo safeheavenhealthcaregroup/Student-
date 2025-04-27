@@ -2,162 +2,145 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Student Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+
+    // Your Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBC-go9YTEF1o15fcYUigCtzMv8yMBZois",
+      authDomain: "student-8ee94.firebaseapp.com",
+      projectId: "student-8ee94",
+      storageBucket: "student-8ee94.appspot.com",
+      messagingSenderId: "877165909465",
+      appId: "1:877165909465:web:ce5c05f9295547f4c2b5c8",
+      measurementId: "G-KRSM7QDXMY"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const userName = document.getElementById("userName");
+    const userEmail = document.getElementById("userEmail");
+    const userAttendance = document.getElementById("userAttendance");
+    const userClasses = document.getElementById("userClasses");
+    const userTeachers = document.getElementById("userTeachers");
+    const loading = document.getElementById("loading");
+
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
+      window.location.href = "login.html"; // Redirect to login page
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const userRef = doc(db, "users", user.uid);
+          const userSnap = await getDoc(userRef);
+
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            userName.textContent = userData.name || "Name not set";
+            userEmail.textContent = userData.email || user.email || "Email not available";
+            userAttendance.textContent = userData.attendance ?? "N/A";
+            userClasses.textContent = userData.attendedClasses ?? "N/A";
+            userTeachers.textContent = userData.teachers ?? "N/A";
+
+            loading.style.display = "none";
+            document.getElementById("userData").style.display = "block";
+          } else {
+            loading.textContent = "No data found. Please contact admin.";
+          }
+        } catch (error) {
+          console.error(error);
+          loading.textContent = "Something went wrong while loading data.";
+        }
+      } else {
+        window.location.href = "login.html"; // Redirect to login if not logged in
+      }
+    });
+  </script>
+
   <style>
     body {
-      font-family: 'Poppins', sans-serif;
-      background: #f1f5f9;
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
       margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
+      padding: 20px;
     }
-
-    header {
-      background-color: #4f46e5;
-      color: white;
-      padding: 15px;
-      text-align: center;
-      font-size: 24px;
-      font-weight: 600;
-    }
-
-    #studentDetails {
-      flex: 1;
+    .header {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      justify-content: center;
-      padding: 30px;
-    }
-
-    .card {
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
-      max-width: 400px;
-      width: 100%;
-      text-align: center;
-    }
-
-    .card h2 {
-      margin-bottom: 10px;
-      color: #4f46e5;
-    }
-
-    .card p {
-      margin: 8px 0;
-      font-size: 16px;
-      color: #333;
-    }
-
-    footer {
-      padding: 10px;
-      text-align: center;
-      background-color: #4f46e5;
+      background: #4CAF50;
       color: white;
-      font-size: 14px;
+      padding: 15px 30px;
+      border-radius: 8px;
     }
-
-    button#logoutBtn {
-      margin-top: 20px;
-      background-color: #ef4444;
-      color: white;
+    .logout-btn {
+      background: #f44336;
       border: none;
       padding: 10px 20px;
-      border-radius: 8px;
-      font-size: 16px;
+      color: white;
+      border-radius: 5px;
       cursor: pointer;
+      font-size: 16px;
     }
-
-    button#logoutBtn:hover {
-      background-color: #dc2626;
+    .logout-btn:hover {
+      background: #d32f2f;
+    }
+    .container {
+      background: white;
+      max-width: 600px;
+      margin: 30px auto;
+      padding: 30px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 8px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .info {
+      margin: 20px 0;
+      font-size: 18px;
+    }
+    .info strong {
+      color: #555;
+    }
+    #loading {
+      text-align: center;
+      margin-top: 50px;
+      font-size: 20px;
+      color: #888;
     }
   </style>
 </head>
+
 <body>
 
-<header>Student Panel</header>
-
-<div id="studentDetails">
-  <p>Loading your data...</p>
+<div class="header">
+  <h2>Student Dashboard</h2>
+  <button id="logoutBtn" class="logout-btn">Logout</button>
 </div>
 
-<footer>
-  <button id="logoutBtn">Logout</button>
-</footer>
+<div class="container" id="userData" style="display:none;">
+  <h1>Welcome, <span id="userName"></span>!</h1>
+  <div class="info"><strong>Email:</strong> <span id="userEmail"></span></div>
+  <div class="info"><strong>Attendance:</strong> <span id="userAttendance"></span></div>
+  <div class="info"><strong>Classes Attended:</strong> <span id="userClasses"></span></div>
+  <div class="info"><strong>Teachers:</strong> <span id="userTeachers"></span></div>
+</div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-  import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
-  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBC-go9YTEF1o15fcYUigCtzMv8yMBZois",
-    authDomain: "student-8ee94.firebaseapp.com",
-    projectId: "student-8ee94",
-    storageBucket: "student-8ee94.appspot.com",
-    messagingSenderId: "877165909465",
-    appId: "1:877165909465:web:ce5c05f9295547f4c2b5c8",
-    measurementId: "G-KRSM7QDXMY"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const auth = getAuth(app);
-
-  const studentDetailsDiv = document.getElementById('studentDetails');
-  const logoutBtn = document.getElementById('logoutBtn');
-
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      const email = user.email;
-
-      try {
-        const usersRef = collection(db, "users");
-        const q = query(usersRef, where("email", "==", email));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-          const userData = querySnapshot.docs[0].data();
-
-          if (userData.role !== "admin") {
-            studentDetailsDiv.innerHTML = `
-              <div class="card">
-                <h2>${userData.name || "No Name"}</h2>
-                <p><strong>Email:</strong> ${userData.email || "Not available"}</p>
-                <p><strong>Attendance:</strong> ${userData.attendance || "Not updated"}</p>
-                <p><strong>Attended Classes:</strong> ${userData.attendedClasses || 0}</p>
-                <p><strong>Teachers:</strong> ${(userData.teachers || []).join(', ')}</p>
-              </div>
-            `;
-          } else {
-            studentDetailsDiv.innerHTML = `<p>You are an admin. No student data to display.</p>`;
-          }
-
-        } else {
-          studentDetailsDiv.innerHTML = `<p>No student data found for your account.</p>`;
-        }
-
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-        studentDetailsDiv.innerHTML = `<p>Something went wrong while loading your data.</p>`;
-      }
-    } else {
-      window.location.href = "login.html";
-    }
-  });
-
-  logoutBtn.addEventListener('click', () => {
-    signOut(auth).then(() => {
-      window.location.href = "login.html";
-    }).catch((error) => {
-      console.error("Logout Error:", error);
-    });
-  });
-</script>
+<div id="loading">Loading your data...</div>
 
 </body>
 </html>
