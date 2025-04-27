@@ -3,41 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Student Dashboard</title>
-  <link rel="stylesheet" href="style.css"> <!-- Your external CSS file -->
-  <style>
-    /* Small inline style for success alert (you can move to css file if you want) */
-    #success-alert {
-      display: none;
-      padding: 10px;
-      margin-top: 10px;
-      background-color: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
-      border-radius: 5px;
-    }
-  </style>
+  <title>Student Panel</title>
+  <link rel="stylesheet" href="your-student.css"> <!-- Link your existing CSS here -->
 </head>
 <body>
 
   <div class="container">
     <h1>Student Dashboard</h1>
 
-    <div id="student-data">
+    <div id="studentDetails" class="student-card">
       <p>Loading your data...</p>
     </div>
 
-    <div id="success-alert">Your data was updated!</div>
-
-    <button onclick="logout()" class="logout-button">Logout</button>
+    <button id="logoutBtn" class="logout-button">Logout</button>
   </div>
 
-  <!-- Firebase SDKs -->
+  <!-- Firebase Scripts -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-    import { getFirestore, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
+    // Your Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBC-go9YTEF1o15fcYUigCtzMv8yMBZois",
       authDomain: "student-8ee94.firebaseapp.com",
@@ -48,63 +35,67 @@
       measurementId: "G-KRSM7QDXMY"
     };
 
+    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
     const db = getFirestore(app);
+    const auth = getAuth(app);
 
-    let previousData = {}; // to detect if data changed
+    const studentDetailsDiv = document.getElementById('studentDetails');
+    const logoutBtn = document.getElementById('logoutBtn');
 
-    function updateStudentData(userData) {
-      document.getElementById('student-data').innerHTML = `
-        <h2>Welcome, ${userData.name || "Student"}!</h2>
-        <p><strong>Email:</strong> ${userData.email || "Not Available"}</p>
-        <p><strong>Attendance:</strong> ${userData.attendance || "Not Updated"}</p>
-        <p><strong>Attended Classes:</strong> ${userData.attendedClasses || "Not Updated"}</p>
-        <p><strong>Assigned Teacher:</strong> ${userData.teacher || "Not Assigned"}</p>
-      `;
-    }
-
-    onAuthStateChanged(auth, (user) => {
+    // Load user data
+    onAuthStateChanged(auth, async (user) => {
       if (user) {
         const userEmail = user.email;
-        const q = query(collection(db, "users"), where("email", "==", userEmail));
 
-        onSnapshot(q, (querySnapshot) => {
-          if (!querySnapshot.empty) {
-            const userData = querySnapshot.docs[0].data();
+        try {
+          const q = query(
+            collection(db, "users"),
+            where("email", "==", userEmail)
+          );
 
-            // Compare old data and new data
-            if (JSON.stringify(userData) !== JSON.stringify(previousData)) {
-              updateStudentData(userData);
-              showSuccessAlert(); // Show success when data changed
-              previousData = userData; // Update previous data
-            }
+          const querySnapshot = await getDocs(q);
+
+          if (querySnapshot.empty) {
+            studentDetailsDiv.innerHTML = `<p>No student data found for your account.</p>`;
           } else {
-            document.getElementById('student-data').innerHTML = "<p>No student record found for your account.</p>";
+            querySnapshot.forEach((doc) => {
+              const data = doc.data();
+
+              if (data.role !== "admin") {
+                studentDetailsDiv.innerHTML = `
+                  <div class="card">
+                    <h2>${data.name}</h2>
+                    <p><strong>Email:</strong> ${data.email}</p>
+                    <p><strong>Attendance:</strong> ${data.attendance}</p>
+                    <p><strong>Attended Classes:</strong> ${data.attendedClasses}</p>
+                    <p><strong>Teachers:</strong> ${data.teachers.join(', ')}</p>
+                  </div>
+                `;
+              } else {
+                studentDetailsDiv.innerHTML = `<p>You are an admin. No student data to display here.</p>`;
+              }
+            });
           }
-        });
+        } catch (error) {
+          console.error("Error fetching student data:", error);
+          studentDetailsDiv.innerHTML = `<p>Something went wrong loading your data.</p>`;
+        }
 
       } else {
-        // Not logged in
         window.location.href = "login.html";
       }
     });
 
-    function logout() {
+    // Logout button
+    logoutBtn.addEventListener('click', () => {
       signOut(auth).then(() => {
         window.location.href = "login.html";
       }).catch((error) => {
-        console.error("Logout Error", error);
+        console.error("Error signing out:", error);
       });
-    }
+    });
 
-    function showSuccessAlert() {
-      const alertBox = document.getElementById('success-alert');
-      alertBox.style.display = 'block';
-      setTimeout(() => {
-        alertBox.style.display = 'none';
-      }, 3000); // Hide after 3 seconds
-    }
   </script>
 
 </body>
